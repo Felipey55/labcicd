@@ -122,3 +122,5 @@ jobs:
           AWS_REGION: ${{ secrets.AWS_REGION }}
         run: |
           aws ecs update-service --cluster my-ecs-cluster --service my-ecs-service --force-new-deployment
+
+
