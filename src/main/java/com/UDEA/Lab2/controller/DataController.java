@@ -44,6 +44,8 @@ public class DataController {
     }
 
 
+
+
     @GetMapping("/currencies")
     public JsonNode getRadomCurrencies(){
         var objectMapper = new ObjectMapper();
