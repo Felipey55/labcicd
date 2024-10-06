@@ -12,103 +12,79 @@ on:
 jobs:
   # Unit tests job
   tests:
-    name: Unit tests
-    # Run on Ubuntu using the latest version
+    name: Unit Tests
     runs-on: ubuntu-latest
-    # Job's steps
     steps:
-      # Check out your repository under $GITHUB_WORKSPACE, so your workflow can access it
-      - uses: actions/checkout@v1
-      # Set up JDK 17
-      - name: Set up JDK
+      - name: Check out code
+        uses: actions/checkout@v1
+      - name: Set up JDK 17
         uses: actions/setup-java@v1
         with:
           java-version: '17'
-      # Set up Maven cache
       - name: Cache Maven packages
         uses: actions/cache@v1
         with:
           path: ~/.m2
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
           restore-keys: ${{ runner.os }}-m2
-      # Run tests
       - name: Run Tests
         run: mvn -B test
 
   # SonarCloud analysis job
   sonar:
-    name: SonarCloud analysis
-    # Depends on the tests job
+    name: SonarCloud Analysis
     needs: tests
-    # Run on Ubuntu using the latest version
     runs-on: ubuntu-latest
-    # Job's steps
     steps:
-      # Check out your repository under $GITHUB_WORKSPACE, so your workflow can access it
-      - uses: actions/checkout@v1
-      # Set up JDK 17
-      - name: Set up JDK
+      - name: Check out code
+        uses: actions/checkout@v1
+      - name: Set up JDK 17
         uses: actions/setup-java@v1
         with:
           java-version: '17'
-      # Set up SonarCloud cache
       - name: Cache SonarCloud packages
         uses: actions/cache@v1
         with:
           path: ~/.sonar/cache
           key: ${{ runner.os }}-sonar
           restore-keys: ${{ runner.os }}-sonar
-      # Set up Maven cache (SonarCloud)
       - name: Cache Maven packages
         uses: actions/cache@v1
         with:
           path: ~/.m2
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
           restore-keys: ${{ runner.os }}-m2
-      # Analyze project with SonarCloud
       - name: Analyze with SonarCloud
         run: mvn -B verify sonar:sonar -Dsonar.projectKey=Felipey55_labcicd -Dsonar.organization=felipey55 -Dsonar.host.url=https://sonarcloud.io -Dsonar.login=$SONAR_TOKEN
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
-    #Build's job
+  # Build and push Docker image
   build:
-    #Depends on sonar's job
+    name: Build and Push Docker Image
     needs: sonar
-    name: Build
-    #Run on Ubuntu using the latest version
     runs-on: ubuntu-latest
     steps:
-      #Check-out your repository under $GITHUB_WORKSPACE, so your workflow can access it
-      - uses: actions/checkout@v1
-      #Set up JDK 11
-      - name: Set up JDK
+      - name: Check out code
+        uses: actions/checkout@v1
+      - name: Set up JDK 17
         uses: actions/setup-java@v1
         with:
           java-version: '17'
-      #Set up Maven cache
       - name: Cache Maven packages
-        #This action allows caching dependencies and build outputs to improve workflow execution time.
         uses: actions/cache@v1
         with:
           path: ~/.m2
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
           restore-keys: ${{ runner.os }}-m2
-      #Build the application using Maven
       - name: Build with Maven
         run: mvn -B package -DskipTests --file pom.xml
-      #Build the application using Maven
       - name: Upload JAR
-        #This uploads artifacts from your workflow allowing you to share data between jobs and store data once a workflow is complete.
         uses: actions/upload-artifact@v3
         with:
-          #Set artifact name
           name: artifact
-          #From this path
           path: target/labcicd-0.0.1-SNAPSHOT.jar
-
-
       - name: Build & push Docker image
         uses: mr-smithers-excellent/docker-build-push@v6
         with:
@@ -118,3 +94,31 @@ jobs:
           dockerfile: Dockerfile
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
+
+  # Deploy to AWS ECS
+  deploy:
+    name: Deploy to Amazon ECS
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Log in to Amazon ECR
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+        run: |
+          aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin ${{ secrets.ECR_REPOSITORY_URI }}
+      - name: Build and tag Docker image
+        run: |
+          docker build -t my-app:${{ github.sha }} .
+          docker tag my-app:${{ github.sha }} ${{ secrets.ECR_REPOSITORY_URI }}:latest
+      - name: Push Docker image to ECR
+        run: |
+          docker push ${{ secrets.ECR_REPOSITORY_URI }}:latest
+      - name: Deploy to ECS
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+        run: |
+          aws ecs update-service --cluster my-ecs-cluster --service my-ecs-service --force-new-deployment
