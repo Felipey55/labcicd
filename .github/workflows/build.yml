@@ -103,10 +103,8 @@ jobs:
         run: zip -j app.zip target/labcicd-0.0.1-SNAPSHOT.jar
       - name: Upload ZIP to S3
         run: |
-          aws s3 cp app.zip s3://my-app-bucket/app.zip
+          aws s3 cp app.zip s3://my-app-bucket-felipey55/app.zip
       - name: Deploy to Elastic Beanstalk
         run: |
-          aws elasticbeanstalk create-application-version --application-name MySpringBootApp --version-label v1 --source-bundle S3Bucket="elasticbeanstalk-us-east-2-039612884412",S3Key="app.zip"
+          aws elasticbeanstalk create-application-version --application-name MySpringBootApp --version-label v1 --source-bundle S3Bucket="my-app-bucket-felipey55",S3Key="app.zip"
           aws elasticbeanstalk update-environment --environment-name my-env --version-label v1
-
-
