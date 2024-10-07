@@ -79,6 +79,11 @@ jobs:
         run: mvn -B package -DskipTests --file pom.xml
       - name: List target directory
         run: ls -l target/
+      - name: Verify JAR File
+        if: "!contains(steps.list_target.outputs.stdout, 'labcicd-0.0.1-SNAPSHOT.jar')"
+        run: |
+          echo "Error: JAR file not found in target directory."
+          exit 1
       - name: Upload JAR
         uses: actions/upload-artifact@v3
         with:
