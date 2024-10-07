@@ -106,7 +106,7 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
       - name: Create ZIP file for Elastic Beanstalk
-        run: zip -j app.zip target/*.jar
+        run: zip -j app.zip target/labcicd-0.0.1-SNAPSHOT.jar
       - name: Upload ZIP to S3
         run: |
           aws s3 cp app.zip s3://my-app-bucket/app.zip
