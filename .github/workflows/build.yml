@@ -2,15 +2,12 @@
 name: CI/CD Pipeline
 
 on:
-  # Manually trigger workflow runs
   workflow_dispatch:
-  # Trigger the workflow on push from the main branch
   push:
     branches:
       - main
 
 jobs:
-  # Unit tests job
   tests:
     name: Unit tests
     runs-on: ubuntu-latest
@@ -29,7 +26,6 @@ jobs:
       - name: Run Tests
         run: mvn -B test
 
-  # SonarCloud analysis job
   sonar:
     name: SonarCloud analysis
     needs: tests
@@ -58,7 +54,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
-  # Build job
   build:
     needs: sonar
     name: Build
@@ -79,11 +74,6 @@ jobs:
         run: mvn -B package -DskipTests --file pom.xml
       - name: List target directory
         run: ls -l target/
-      - name: Verify JAR File
-        if: "!contains(steps.list_target.outputs.stdout, 'labcicd-0.0.1-SNAPSHOT.jar')"
-        run: |
-          echo "Error: JAR file not found in target directory."
-          exit 1
       - name: Upload JAR
         uses: actions/upload-artifact@v3
         with:
@@ -99,7 +89,6 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-  # Deploy job
   deploy:
     needs: build
     runs-on: ubuntu-latest
@@ -112,6 +101,8 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
+      - name: List target directory before zipping
+        run: ls -l target/
       - name: Create ZIP file for Elastic Beanstalk
         run: zip -j app.zip target/labcicd-0.0.1-SNAPSHOT.jar
       - name: Upload ZIP to S3
