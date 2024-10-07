@@ -101,13 +101,14 @@ jobs:
         run: ls -l target/
       - name: Create ZIP file for Elastic Beanstalk
         run: zip -j app.zip target/labcicd-0.0.1-SNAPSHOT.jar
-      - name: Upload ZIP to S3
+      - name: Delete existing application version
         run: |
-          aws s3 cp app.zip s3://my-app-bucket-felipey55/app.zip
+          aws elasticbeanstalk delete-application-version --application-name SpringBootApp --version-label v1 --delete-source-bundle || true
       - name: Deploy to Elastic Beanstalk
         run: |
           aws elasticbeanstalk create-application-version --application-name SpringBootApp --version-label v1 --source-bundle S3Bucket="my-app-bucket-felipey55",S3Key="app.zip"
           aws elasticbeanstalk update-environment --environment-name my-env --version-label v1
+      
    
    
    
